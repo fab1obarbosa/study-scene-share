@@ -1,9 +1,20 @@
 import { createClient } from '@supabase/supabase-js'
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || ''
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+// Verificar se as variáveis de ambiente estão configuradas
+if (!supabaseUrl || !supabaseAnonKey) {
+  console.error('🔴 Variáveis de ambiente do Supabase não encontradas!')
+  console.log('📋 Configure no painel do Supabase:')
+  console.log('   VITE_SUPABASE_URL')
+  console.log('   VITE_SUPABASE_ANON_KEY')
+}
+
+export const supabase = createClient(
+  supabaseUrl || 'https://placeholder.supabase.co', 
+  supabaseAnonKey || 'placeholder-key'
+)
 
 // Database Types
 export interface User {
