@@ -1,7 +1,9 @@
 import { createContext, useContext, useEffect, useState } from 'react'
-import { supabase } from '@/lib/supabase'
+import { supabase } from '@/integrations/supabase/client'
 import type { User } from '@supabase/supabase-js'
-import type { User as UserType } from '@/lib/supabase'
+import type { Database } from '@/integrations/supabase/types'
+
+type UserType = Database['public']['Tables']['users']['Row']
 
 interface AuthContextType {
   user: UserType | null

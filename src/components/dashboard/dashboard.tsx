@@ -10,7 +10,7 @@ import {
   DropdownMenuSeparator, 
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu"
-import { supabase } from "@/lib/supabase"
+import { supabase } from "@/integrations/supabase/client"
 import { useToast } from "@/hooks/use-toast"
 import { 
   Plus, 
@@ -26,7 +26,13 @@ import {
   Trophy,
   TrendingUp
 } from "lucide-react"
-import type { Quiz, Attempt, User as UserType } from "@/lib/supabase"
+import type { Database } from "@/integrations/supabase/types"
+
+type Quiz = Database['public']['Tables']['quizzes']['Row']
+type Attempt = Database['public']['Tables']['attempts']['Row'] & {
+  quizzes?: { name: string }
+}
+type UserType = Database['public']['Tables']['users']['Row']
 
 interface DashboardProps {
   user: UserType
