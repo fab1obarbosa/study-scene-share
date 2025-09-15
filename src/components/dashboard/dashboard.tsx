@@ -36,9 +36,11 @@ type UserType = Database['public']['Tables']['users']['Row']
 
 interface DashboardProps {
   user: UserType
+  onCreateQuiz: () => void
+  onTakeQuiz: (quizId: string) => void
 }
 
-export function Dashboard({ user }: DashboardProps) {
+export function Dashboard({ user, onCreateQuiz, onTakeQuiz }: DashboardProps) {
   const [quizzes, setQuizzes] = useState<Quiz[]>([])
   const [attempts, setAttempts] = useState<Attempt[]>([])
   const [loading, setLoading] = useState(true)
@@ -163,7 +165,10 @@ export function Dashboard({ user }: DashboardProps) {
       <main className="container mx-auto px-4 py-8">
         {/* Action Buttons */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-          <Card className="gradient-card border-0 shadow-lg hover:shadow-xl animation-smooth cursor-pointer group">
+          <Card 
+            className="gradient-card border-0 shadow-lg hover:shadow-xl animation-smooth cursor-pointer group"
+            onClick={onCreateQuiz}
+          >
             <CardContent className="p-8 text-center">
               <div className="w-16 h-16 mx-auto mb-4 rounded-full gradient-primary flex items-center justify-center group-hover:scale-110 animation-bounce">
                 <Plus className="h-8 w-8 text-white" />
@@ -222,7 +227,7 @@ export function Dashboard({ user }: DashboardProps) {
                   <p className="text-muted-foreground">
                     Você ainda não criou nenhum quiz
                   </p>
-                  <Button variant="outline" className="mt-3">
+                  <Button variant="outline" className="mt-3" onClick={onCreateQuiz}>
                     <Plus className="h-4 w-4 mr-2" />
                     Criar primeiro quiz
                   </Button>
@@ -245,9 +250,13 @@ export function Dashboard({ user }: DashboardProps) {
                             </span>
                           </div>
                         </div>
-                        <Button variant="outline" size="sm">
-                          <RotateCcw className="h-4 w-4 mr-2" />
-                          Refazer
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => onTakeQuiz(quiz.id)}
+                        >
+                          <Play className="h-4 w-4 mr-2" />
+                          Fazer Quiz
                         </Button>
                       </div>
                     </CardContent>
@@ -283,9 +292,9 @@ export function Dashboard({ user }: DashboardProps) {
                   <p className="text-muted-foreground">
                     Nenhuma tentativa realizada ainda
                   </p>
-                  <Button variant="outline" className="mt-3">
+                  <Button variant="outline" className="mt-3" onClick={onCreateQuiz}>
                     <Play className="h-4 w-4 mr-2" />
-                    Fazer primeiro quiz
+                    Criar primeiro quiz
                   </Button>
                 </Card>
               ) : (
