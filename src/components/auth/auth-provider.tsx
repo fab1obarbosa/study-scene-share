@@ -27,13 +27,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } else {
         setLoading(false)
       }
+    }).catch(() => {
+      setLoading(false)
     })
 
     // Escutar mudanças de autenticação
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      (event, session) => {
         if (session?.user) {
-          await loadUserProfile(session.user)
+          loadUserProfile(session.user)
         } else {
           setUser(null)
           setLoading(false)
@@ -46,15 +48,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const loadUserProfile = async (authUser: User) => {
     try {
-      // Buscar ou criar perfil do usuário
-      let { data: profile, error } = await supabase
+      // Buscar perfil do usuário
+      const { data: profile, error } = await supabase
         .from('users')
         .select('*')
         .eq('id', authUser.id)
         .maybeSingle()
 
       if (!profile && !error) {
-        // Usuário não existe, criar perfil
+        // Criar perfil se não existir
         const newProfile = {
           id: authUser.id,
           name: authUser.user_metadata?.name || authUser.email?.split('@')[0] || 'Usuário',
@@ -62,21 +64,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           avatar_url: authUser.user_metadata?.avatar_url,
         }
 
-        const { data: createdProfile, error: createError } = await supabase
+        const { data: createdProfile } = await supabase
           .from('users')
           .insert(newProfile)
           .select()
           .single()
 
-        if (createError) throw createError
-        profile = createdProfile
-      } else if (error) {
-        throw error
+        setUser(createdProfile || null)
+      } else if (profile) {
+        setUser(profile)
       }
-
-      setUser(profile)
     } catch (error) {
       console.error('Erro ao carregar perfil:', error)
+      // Em caso de erro, ainda assim pare o loading
+      setUser(null)
     } finally {
       setLoading(false)
     }
