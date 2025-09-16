@@ -51,9 +51,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .from('users')
         .select('*')
         .eq('id', authUser.id)
-        .single()
+        .maybeSingle()
 
-      if (error && error.code === 'PGRST116') {
+      if (!profile && !error) {
         // Usuário não existe, criar perfil
         const newProfile = {
           id: authUser.id,
