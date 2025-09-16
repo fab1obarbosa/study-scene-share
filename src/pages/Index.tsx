@@ -1,7 +1,7 @@
 import { useAuth } from "@/components/auth/auth-provider"
 import { AuthForm } from "@/components/auth/auth-form"
 import { Dashboard } from "@/components/dashboard/dashboard"
-import { CreateQuiz } from "@/components/quiz/create-quiz"
+import { CreateQuizWizard } from '@/components/quiz/create-quiz-wizard';
 import { QuizTaker } from "@/components/quiz/quiz-taker"
 import { QuizResult } from "@/components/quiz/quiz-result"
 import { useState } from "react"
@@ -58,7 +58,7 @@ const Index = () => {
 
   if (currentView === 'create-quiz') {
     return (
-      <CreateQuiz
+      <CreateQuizWizard
         userId={user.id}
         onBack={() => setCurrentView('dashboard')}
         onQuizCreated={() => setCurrentView('dashboard')}

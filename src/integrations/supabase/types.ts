@@ -91,18 +91,21 @@ export type Database = {
       questions: {
         Row: {
           id: string
+          image_url: string | null
           order: number | null
           quiz_id: string | null
           text: string
         }
         Insert: {
           id?: string
+          image_url?: string | null
           order?: number | null
           quiz_id?: string | null
           text: string
         }
         Update: {
           id?: string
+          image_url?: string | null
           order?: number | null
           quiz_id?: string | null
           text?: string
@@ -126,6 +129,7 @@ export type Database = {
           name: string
           question_count: number | null
           raw_text: string | null
+          status: string | null
           user_id: string | null
         }
         Insert: {
@@ -136,6 +140,7 @@ export type Database = {
           name: string
           question_count?: number | null
           raw_text?: string | null
+          status?: string | null
           user_id?: string | null
         }
         Update: {
@@ -146,6 +151,7 @@ export type Database = {
           name?: string
           question_count?: number | null
           raw_text?: string | null
+          status?: string | null
           user_id?: string | null
         }
         Relationships: [
