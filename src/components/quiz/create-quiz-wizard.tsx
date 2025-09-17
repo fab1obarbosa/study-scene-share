@@ -138,7 +138,21 @@ export const CreateQuizWizard: React.FC<CreateQuizWizardProps> = ({
         setCurrentStep(3);
         
       } else if (currentStep === 3) {
-        // Salvar imagens (se houver)
+        // Salvar imagens - as URLs já foram salvas durante o upload
+        // Apenas atualizar as URLs no banco se necessário
+        if (stepData.questions) {
+          for (const question of stepData.questions) {
+            if (question.imageUrl && question.order) {
+              // Garantir que a URL da imagem está salva no banco
+              await supabase
+                .from('questions')
+                .update({ image_url: question.imageUrl })
+                .eq('quiz_id', quizData.id)
+                .eq('order', question.order);
+            }
+          }
+        }
+        
         setParsedQuestions(stepData.questions);
         setCurrentStep(4);
         
