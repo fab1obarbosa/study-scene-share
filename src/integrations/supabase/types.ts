@@ -94,6 +94,7 @@ export type Database = {
           image_url: string | null
           order: number | null
           quiz_id: string | null
+          statements: Json | null
           text: string
         }
         Insert: {
@@ -101,6 +102,7 @@ export type Database = {
           image_url?: string | null
           order?: number | null
           quiz_id?: string | null
+          statements?: Json | null
           text: string
         }
         Update: {
@@ -108,6 +110,7 @@ export type Database = {
           image_url?: string | null
           order?: number | null
           quiz_id?: string | null
+          statements?: Json | null
           text?: string
         }
         Relationships: [

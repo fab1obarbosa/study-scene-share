@@ -48,6 +48,7 @@ export const QuestionsStep: React.FC<QuestionsStepProps> = ({
         .slice(0, quizData.questionCount)
         .map((q, index) => ({
           text: q.text,
+          statements: q.statements, // Incluir afirmações se existirem
           order: index + 1,
           options: q.options
         }));
@@ -117,35 +118,46 @@ export const QuestionsStep: React.FC<QuestionsStepProps> = ({
             Processar Texto
           </Button>
 
-          {/* Format Help */}
-          <Card className="bg-muted/50">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm">Formatos Aceitos</CardTitle>
-            </CardHeader>
-            <CardContent className="text-xs space-y-2">
-              <div>
-                <strong>Formato 1:</strong><br/>
-                1. Pergunta aqui?<br/>
-                a) Alternativa A<br/>
-                b) Alternativa B<br/>
-                c) Alternativa C
-              </div>
-              <div>
-                <strong>Formato 2:</strong><br/>
-                1 - Pergunta aqui?<br/>
-                a<br/>
-                b<br/>
-                c
-              </div>
-              <div>
-                <strong>Formato 3:</strong><br/>
-                A. Pergunta aqui?<br/>
-                1<br/>
-                2<br/>
-                3
-              </div>
-            </CardContent>
-          </Card>
+           {/* Format Help */}
+           <Card className="bg-muted/50">
+             <CardHeader className="pb-3">
+               <CardTitle className="text-sm">Formatos Aceitos</CardTitle>
+             </CardHeader>
+             <CardContent className="text-xs space-y-3">
+               <div>
+                 <strong>Perguntas Numeradas:</strong><br/>
+                 1. Pergunta aqui?<br/>
+                 1- Pergunta aqui?<br/>
+                 1) Pergunta aqui?
+               </div>
+               <div>
+                 <strong>Perguntas Letradas:</strong><br/>
+                 A. Pergunta aqui?<br/>
+                 A) Pergunta aqui?
+               </div>
+               <div>
+                 <strong>Alternativas:</strong><br/>
+                 a) Alternativa A<br/>
+                 A. Alternativa B<br/>
+                 1) Alternativa C
+               </div>
+               <div>
+                 <strong>Com Afirmações I, II, III:</strong><br/>
+                 1. Analise as afirmações:<br/>
+                 I. Primeira afirmação<br/>
+                 II- Segunda afirmação<br/>
+                 III) Terceira afirmação<br/>
+                 a) Apenas I está correta<br/>
+                 b) I e II estão corretas
+               </div>
+               <div>
+                 <strong>Verdadeiro/Falso:</strong><br/>
+                 1. Pergunta aqui?<br/>
+                 a) Verdadeiro<br/>
+                 b) Falso
+               </div>
+             </CardContent>
+           </Card>
         </div>
 
         {/* Preview Section */}
@@ -169,26 +181,39 @@ export const QuestionsStep: React.FC<QuestionsStepProps> = ({
             <div className="space-y-3 max-h-96 overflow-y-auto">
               {parsedQuestions.map((question, index) => (
                 <Card key={index} className="text-sm">
-                  <CardContent className="p-4">
-                    <div className="font-medium mb-2">
-                      {index + 1}. {question.text}
-                    </div>
-                    <div className="space-y-1">
-                      {question.options.map((option, optIndex) => (
-                        <div 
-                          key={optIndex}
-                          className={`text-xs p-1 rounded ${
-                            option.is_correct 
-                              ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' 
-                              : 'bg-muted'
-                          }`}
-                        >
-                          {option.label}) {option.text}
-                          {option.is_correct && ' ✓'}
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
+                   <CardContent className="p-4">
+                     <div className="font-medium mb-2">
+                       {index + 1}. {question.text}
+                     </div>
+                     
+                     {/* Exibir afirmações se existirem */}
+                     {question.statements && question.statements.length > 0 && (
+                       <div className="mb-3 p-2 bg-blue-50 dark:bg-blue-950/20 rounded">
+                         <div className="text-xs font-medium text-blue-800 dark:text-blue-200 mb-1">Afirmações:</div>
+                         {question.statements.map((statement, stIndex) => (
+                           <div key={stIndex} className="text-xs text-blue-700 dark:text-blue-300">
+                             {statement}
+                           </div>
+                         ))}
+                       </div>
+                     )}
+                     
+                     <div className="space-y-1">
+                       {question.options.map((option, optIndex) => (
+                         <div 
+                           key={optIndex}
+                           className={`text-xs p-1 rounded ${
+                             option.is_correct 
+                               ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' 
+                               : 'bg-muted'
+                           }`}
+                         >
+                           {option.label}) {option.text}
+                           {option.is_correct && ' ✓'}
+                         </div>
+                       ))}
+                     </div>
+                   </CardContent>
                 </Card>
               ))}
               

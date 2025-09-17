@@ -29,6 +29,7 @@ export interface QuizData {
 
 export interface ParsedQuestion {
   text: string;
+  statements?: string[]; // Para afirmações I, II, III
   order: number;
   image?: File;
   imageUrl?: string;
@@ -111,6 +112,7 @@ export const CreateQuizWizard: React.FC<CreateQuizWizardProps> = ({
             .insert({
               quiz_id: quizData.id,
               text: question.text,
+              statements: question.statements || null, // Incluir afirmações se existirem
               order: question.order
             })
             .select()

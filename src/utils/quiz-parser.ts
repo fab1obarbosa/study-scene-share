@@ -1,5 +1,6 @@
 interface ParsedQuestion {
   text: string;
+  statements?: string[]; // Para afirmações I, II, III
   options: {
     label: string;
     text: string;
@@ -19,6 +20,7 @@ export function parseQuizRawText(rawText: string): ParsedQuiz {
   
   const questions: ParsedQuestion[] = [];
   let currentQuestion: string = '';
+  let currentStatements: string[] = [];
   let currentOptions: Array<{ label: string; text: string; is_correct: boolean }> = [];
   let answerKey: { [key: number]: string } = {};
   
@@ -41,62 +43,166 @@ export function parseQuizRawText(rawText: string): ParsedQuiz {
   }
   
   let questionNumber = 0;
+  let currentOptionText = '';
+  let currentOptionLabel = '';
+  
+  // Função auxiliar para normalizar texto
+  const normalizeText = (text: string): string => {
+    return text
+      .replace(/\s+/g, ' ') // Múltiplos espaços para um único
+      .replace(/\|\|\|/g, 'III') // Corrigir ||| para III
+      .replace(/\|\|/g, 'II') // Corrigir || para II
+      .replace(/\|/g, 'I') // Corrigir | para I
+      .trim();
+  };
+  
+  // Função para detectar algarismos romanos
+  const romanNumeralPattern = /^(I{1,3}|IV|V|VI{0,3}|IX|X{1,3})[\.\-\)]\s*(.+)/i;
   
   for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
+    let line = normalizeText(lines[i]);
     
     // Skip gabarito line
     if (gabaritoPattern.test(line)) continue;
     
-    // Detectar início de pergunta (formato numerado)
-    const questionPattern = /^(\d+)\.?\s+(.+)/;
-    const questionMatch = line.match(questionPattern);
+    // Detectar início de pergunta - formatos variados
+    const questionPatterns = [
+      /^(\d+)[\.\-\)]\s*(.+)/, // 1. ou 1- ou 1)
+      /^([A-Z])[\.\)]\s*(.+)/, // A. ou A)
+    ];
+    
+    let questionMatch = null;
+    for (const pattern of questionPatterns) {
+      questionMatch = line.match(pattern);
+      if (questionMatch) break;
+    }
     
     if (questionMatch) {
       // Salvar pergunta anterior se existir
-      if (currentQuestion && currentOptions.length > 0) {
-        questions.push({
+      if (currentQuestion && (currentStatements.length > 0 || currentOptions.length > 0)) {
+        const questionData: ParsedQuestion = {
           text: currentQuestion,
           options: [...currentOptions]
-        });
+        };
+        if (currentStatements.length > 0) {
+          questionData.statements = [...currentStatements];
+        }
+        questions.push(questionData);
       }
       
-      questionNumber = parseInt(questionMatch[1]);
+      // Nova pergunta
+      if (questionMatch[1].match(/\d+/)) {
+        questionNumber = parseInt(questionMatch[1]);
+      }
       currentQuestion = questionMatch[2];
+      currentStatements = [];
       currentOptions = [];
+      currentOptionText = '';
+      currentOptionLabel = '';
       continue;
     }
     
-    // Detectar alternativas
-    const optionPattern = /^([A-Za-z])\)\s*(.+?)(\s*\*|\s*\(correta?\)|\s*✓|\s*--\s*corret[ao])?$/i;
-    const optionMatch = line.match(optionPattern);
+    // Detectar afirmações I, II, III
+    const romanMatch = line.match(romanNumeralPattern);
+    if (romanMatch && currentQuestion) {
+      currentStatements.push(`${romanMatch[1].toUpperCase()}. ${romanMatch[2]}`);
+      continue;
+    }
+    
+    // Detectar alternativas - formatos variados
+    const optionPatterns = [
+      /^([A-Za-z])[\)\.]?\s*(.+?)(\s*\*|\s*\(correta?\)|\s*✓|\s*--\s*corret[ao])?$/i, // A) ou A.
+      /^(\d+)[\)\.]?\s*(.+?)(\s*\*|\s*\(correta?\)|\s*✓|\s*--\s*corret[ao])?$/i, // 1) ou 1.
+    ];
+    
+    let optionMatch = null;
+    for (const pattern of optionPatterns) {
+      optionMatch = line.match(pattern);
+      if (optionMatch) break;
+    }
     
     if (optionMatch && currentQuestion) {
-      const label = optionMatch[1].toUpperCase();
-      const text = optionMatch[2].trim();
-      const isMarkedCorrect = !!optionMatch[3];
-      
-      // Determinar se é correta baseado em: marcação explícita ou gabarito
-      let isCorrect = isMarkedCorrect;
-      if (!isCorrect && answerKey[questionNumber]) {
-        isCorrect = label === answerKey[questionNumber];
+      // Finalizar alternativa anterior se existir
+      if (currentOptionLabel && currentOptionText) {
+        let isCorrect = false;
+        if (answerKey[questionNumber]) {
+          isCorrect = currentOptionLabel === answerKey[questionNumber];
+        }
+        
+        currentOptions.push({
+          label: currentOptionLabel,
+          text: currentOptionText.trim(),
+          is_correct: isCorrect
+        });
       }
       
-      currentOptions.push({
-        label,
-        text,
-        is_correct: isCorrect
-      });
+      // Nova alternativa
+      currentOptionLabel = optionMatch[1].toUpperCase();
+      currentOptionText = optionMatch[2].trim();
+      const isMarkedCorrect = !!optionMatch[3];
+      
+      // Se marcada explicitamente como correta
+      if (isMarkedCorrect) {
+        currentOptions.push({
+          label: currentOptionLabel,
+          text: currentOptionText,
+          is_correct: true
+        });
+        currentOptionLabel = '';
+        currentOptionText = '';
+      }
+      continue;
+    }
+    
+    // Se não é início de pergunta nem alternativa, pode ser continuação
+    if (currentOptionLabel && currentOptionText) {
+      // Continuação da alternativa atual
+      currentOptionText += ` ${line}`;
+    } else if (currentQuestion && !currentStatements.length && !currentOptions.length) {
+      // Continuação da pergunta
+      currentQuestion += ` ${line}`;
     }
   }
   
-  // Adicionar última pergunta
-  if (currentQuestion && currentOptions.length > 0) {
-    questions.push({
-      text: currentQuestion,
-      options: [...currentOptions]
+  // Finalizar última alternativa se existir
+  if (currentOptionLabel && currentOptionText) {
+    let isCorrect = false;
+    if (answerKey[questionNumber]) {
+      isCorrect = currentOptionLabel === answerKey[questionNumber];
+    }
+    
+    currentOptions.push({
+      label: currentOptionLabel,
+      text: currentOptionText.trim(),
+      is_correct: isCorrect
     });
   }
+  
+  // Adicionar última pergunta
+  if (currentQuestion && (currentStatements.length > 0 || currentOptions.length > 0)) {
+    const questionData: ParsedQuestion = {
+      text: currentQuestion,
+      options: [...currentOptions]
+    };
+    if (currentStatements.length > 0) {
+      questionData.statements = [...currentStatements];
+    }
+    questions.push(questionData);
+  }
+  
+  // Processar questões de verdadeiro/falso
+  questions.forEach(question => {
+    const hasVerdadeiroFalso = question.options.some(opt => 
+      /^(verdadeiro|falso|true|false|correto|incorreto|certo|errado)$/i.test(opt.text.trim())
+    );
+    
+    if (hasVerdadeiroFalso || question.options.length === 2) {
+      // É uma questão binária, garantir que tenha exatamente 2 opções
+      if (question.options.length > 2) {
+        question.options = question.options.slice(0, 2);
+      }
+    }
+  });
   
   // Normalizar: garantir que cada pergunta tenha exatamente uma resposta correta
   questions.forEach(question => {

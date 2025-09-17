@@ -127,20 +127,36 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
                   />
                 )}
                 
-                <div className="flex-1 min-w-0">
-                  <div className="font-medium text-sm mb-1">
-                    {index + 1}. {question.text}
-                  </div>
-                  <div className="text-xs text-muted-foreground">
-                    {question.options.length} alternativa{question.options.length > 1 ? 's' : ''}
-                    {question.imageUrl && (
-                      <span className="ml-2 inline-flex items-center gap-1">
-                        <ImageIcon className="w-3 h-3" />
-                        Com imagem
-                      </span>
-                    )}
-                  </div>
-                </div>
+                 <div className="flex-1 min-w-0">
+                   <div className="font-medium text-sm mb-1">
+                     {index + 1}. {question.text}
+                   </div>
+                   
+                   {/* Exibir afirmações se existirem */}
+                   {question.statements && question.statements.length > 0 && (
+                     <div className="mb-2 p-2 bg-blue-50 dark:bg-blue-950/20 rounded text-xs">
+                       <div className="font-medium text-blue-800 dark:text-blue-200 mb-1">Afirmações:</div>
+                       {question.statements.map((statement, stIndex) => (
+                         <div key={stIndex} className="text-blue-700 dark:text-blue-300">
+                           {statement}
+                         </div>
+                       ))}
+                     </div>
+                   )}
+                   
+                   <div className="text-xs text-muted-foreground">
+                     {question.options.length} alternativa{question.options.length > 1 ? 's' : ''}
+                     {question.statements && question.statements.length > 0 && (
+                       <span className="ml-2">• {question.statements.length} afirmação{question.statements.length > 1 ? 'ões' : ''}</span>
+                     )}
+                     {question.imageUrl && (
+                       <span className="ml-2 inline-flex items-center gap-1">
+                         <ImageIcon className="w-3 h-3" />
+                         Com imagem
+                       </span>
+                     )}
+                   </div>
+                 </div>
               </div>
             ))}
           </div>
