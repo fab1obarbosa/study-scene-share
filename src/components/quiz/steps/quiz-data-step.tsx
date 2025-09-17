@@ -21,19 +21,6 @@ interface FormData {
   questionCount: number;
 }
 
-const CATEGORIES = [
-  'Geral',
-  'História',
-  'Geografia',
-  'Ciências',
-  'Matemática',
-  'Literatura',
-  'Esportes',
-  'Cinema',
-  'Música',
-  'Tecnologia'
-];
-
 export const QuizDataStep: React.FC<QuizDataStepProps> = ({ data, onNext, isLoading }) => {
   const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<FormData>({
     defaultValues: {
@@ -43,8 +30,6 @@ export const QuizDataStep: React.FC<QuizDataStepProps> = ({ data, onNext, isLoad
       questionCount: data.questionCount
     }
   });
-
-  const selectedCategory = watch('category');
 
   const onSubmit = (formData: FormData) => {
     onNext(formData);
@@ -81,22 +66,15 @@ export const QuizDataStep: React.FC<QuizDataStepProps> = ({ data, onNext, isLoad
 
           {/* Categoria */}
           <div className="space-y-2">
-            <Label>Categoria *</Label>
-            <Select
-              value={selectedCategory}
-              onValueChange={(value) => setValue('category', value)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione uma categoria" />
-              </SelectTrigger>
-              <SelectContent>
-                {CATEGORIES.map((category) => (
-                  <SelectItem key={category} value={category}>
-                    {category}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Label htmlFor="category">Categoria *</Label>
+            <Input
+              id="category"
+              placeholder="Ex: História, Geografia, Ciências..."
+              {...register('category', { 
+                required: 'Categoria é obrigatória',
+                minLength: { value: 2, message: 'Categoria deve ter pelo menos 2 caracteres' }
+              })}
+            />
             {errors.category && (
               <p className="text-sm text-destructive">{errors.category.message}</p>
             )}
