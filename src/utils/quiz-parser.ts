@@ -43,8 +43,8 @@ export function parseQuizRawText(rawText: string): ParsedQuiz {
   }
   
   let questionNumber = 0;
-  let currentOptionText = '';
-  let currentOptionLabel = '';
+  let isInQuestion = false;
+  let isInOptions = false;
   
   // Função auxiliar para normalizar texto
   const normalizeText = (text: string): string => {
@@ -55,145 +55,182 @@ export function parseQuizRawText(rawText: string): ParsedQuiz {
       .replace(/\|/g, 'I') // Corrigir | para I
       .trim();
   };
-  
-  // Função para detectar algarismos romanos
-  const romanNumeralPattern = /^(I{1,3}|IV|V|VI{0,3}|IX|X{1,3})[\.\-\)]\s*(.+)/i;
-  
+
+  // Função para detectar se uma linha é uma pergunta
+  const isQuestionLine = (line: string): { isQuestion: boolean; number?: number; text?: string } => {
+    const patterns = [
+      // Padrões numéricos: 1. 1- 1) 1 - 1 . 1 ) (1) [1]
+      /^(\d+)\s*[\.\-\)\]\}]\s*(.+)/,
+      /^[\(\[\{](\d+)[\)\]\}]\s*(.+)/,
+      /^(\d+)\s+(.+)/,
+      // Padrões alfabéticos: A. A- A) A ) (A) [A]
+      /^([A-Z])\s*[\.\-\)\]\}]\s*(.+)/i,
+      /^[\(\[\{]([A-Z])[\)\]\}]\s*(.+)/i,
+      /^([A-Z])\s+(.+)/i,
+      // Padrões especiais: Question 1, Questão 1, Pergunta 1
+      /^(question|questão|pergunta)\s*(\d+)\s*[\.\-\:]\s*(.+)/i,
+    ];
+
+    for (const pattern of patterns) {
+      const match = line.match(pattern);
+      if (match) {
+        const numberOrLetter = match[1];
+        const text = match[3] || match[2];
+        
+        // Se for número, usar como número da questão
+        if (/^\d+$/.test(numberOrLetter)) {
+          return { isQuestion: true, number: parseInt(numberOrLetter), text };
+        }
+        // Se for letra, tentar converter para número (A=1, B=2, etc)
+        else if (/^[A-Z]$/i.test(numberOrLetter)) {
+          const letterNumber = numberOrLetter.toUpperCase().charCodeAt(0) - 64;
+          return { isQuestion: true, number: letterNumber, text };
+        }
+      }
+    }
+
+    return { isQuestion: false };
+  };
+
+  // Função para detectar se uma linha é uma alternativa
+  const isOptionLine = (line: string): { isOption: boolean; label?: string; text?: string; isCorrect?: boolean } => {
+    const patterns = [
+      // Padrões com letras: a) A) a. A. a- A- (a) [A]
+      /^([A-Za-z])\s*[\)\.\-\]\}]\s*(.+?)(\s*\*|\s*\(correta?\)|\s*✓|\s*--\s*corret[ao]|\s*\(certa?\))?$/i,
+      /^[\(\[\{]([A-Za-z])[\)\]\}]\s*(.+?)(\s*\*|\s*\(correta?\)|\s*✓|\s*--\s*corret[ao]|\s*\(certa?\))?$/i,
+      // Padrões com números: 1) 2) 1. 2. (1) [2]
+      /^(\d+)\s*[\)\.\-\]\}]\s*(.+?)(\s*\*|\s*\(correta?\)|\s*✓|\s*--\s*corret[ao]|\s*\(certa?\))?$/i,
+      /^[\(\[\{](\d+)[\)\]\}]\s*(.+?)(\s*\*|\s*\(correta?\)|\s*✓|\s*--\s*corret[ao]|\s*\(certa?\))?$/i,
+      // Padrões especiais: - texto, * texto, • texto
+      /^[\-\*\•]\s*(.+?)(\s*\*|\s*\(correta?\)|\s*✓|\s*--\s*corret[ao]|\s*\(certa?\))?$/i,
+      // Apenas texto com marcação de correto
+      /^(.+?)(\s*\*|\s*\(correta?\)|\s*✓|\s*--\s*corret[ao]|\s*\(certa?\))$/i,
+    ];
+
+    for (let i = 0; i < patterns.length; i++) {
+      const match = line.match(patterns[i]);
+      if (match) {
+        let label = match[1];
+        let text = match[2] || match[1];
+        const isCorrect = !!match[3] || !!(match[2] && match[2]);
+
+        // Para padrões sem label explícito, gerar label automático
+        if (i >= 4) { // Padrões especiais sem label
+          label = String.fromCharCode(65 + (currentOptions.length)); // A, B, C...
+          text = match[1];
+        }
+
+        // Normalizar label
+        if (/^\d+$/.test(label)) {
+          label = String.fromCharCode(64 + parseInt(label)); // 1->A, 2->B
+        }
+
+        return { 
+          isOption: true, 
+          label: label.toUpperCase(), 
+          text: text.trim(),
+          isCorrect: isCorrect
+        };
+      }
+    }
+
+    return { isOption: false };
+  };
+
+  // Função para detectar afirmações I, II, III
+  const isStatementLine = (line: string): { isStatement: boolean; text?: string } => {
+    const romanPattern = /^(I{1,3}|IV|V|VI{0,3}|IX|X{1,3})\s*[\.\-\)\]\}]\s*(.+)/i;
+    const match = line.match(romanPattern);
+    
+    if (match) {
+      return { isStatement: true, text: `${match[1].toUpperCase()}. ${match[2]}` };
+    }
+
+    return { isStatement: false };
+  };
+
+  // Função para salvar pergunta atual
+  const saveCurrentQuestion = () => {
+    if (currentQuestion && (currentStatements.length > 0 || currentOptions.length > 0)) {
+      const questionData: ParsedQuestion = {
+        text: currentQuestion,
+        options: [...currentOptions]
+      };
+      if (currentStatements.length > 0) {
+        questionData.statements = [...currentStatements];
+      }
+      questions.push(questionData);
+    }
+  };
+
+  // Processar linhas
   for (let i = 0; i < lines.length; i++) {
     let line = normalizeText(lines[i]);
     
     // Skip gabarito line
     if (gabaritoPattern.test(line)) continue;
     
-    // Detectar início de pergunta - formatos variados
-    const questionPatterns = [
-      /^(\d+)[\.\-\)]\s*(.+)/, // 1. ou 1- ou 1)
-      /^([A-Z])[\.\)]\s*(.+)/, // A. ou A)
-    ];
-    
-    let questionMatch = null;
-    for (const pattern of questionPatterns) {
-      questionMatch = line.match(pattern);
-      if (questionMatch) break;
-    }
-    
-    if (questionMatch) {
-      // Salvar pergunta anterior se existir
-      if (currentQuestion && (currentStatements.length > 0 || currentOptions.length > 0)) {
-        const questionData: ParsedQuestion = {
-          text: currentQuestion,
-          options: [...currentOptions]
-        };
-        if (currentStatements.length > 0) {
-          questionData.statements = [...currentStatements];
-        }
-        questions.push(questionData);
-      }
+    // Verificar se é uma nova pergunta
+    const questionCheck = isQuestionLine(line);
+    if (questionCheck.isQuestion) {
+      // Salvar pergunta anterior
+      saveCurrentQuestion();
       
-      // Nova pergunta
-      if (questionMatch[1].match(/\d+/)) {
-        questionNumber = parseInt(questionMatch[1]);
-      }
-      currentQuestion = questionMatch[2];
+      // Iniciar nova pergunta
+      questionNumber = questionCheck.number || questionNumber + 1;
+      currentQuestion = questionCheck.text || '';
       currentStatements = [];
       currentOptions = [];
-      currentOptionText = '';
-      currentOptionLabel = '';
+      isInQuestion = true;
+      isInOptions = false;
       continue;
     }
-    
-    // Detectar afirmações I, II, III
-    const romanMatch = line.match(romanNumeralPattern);
-    if (romanMatch && currentQuestion) {
-      currentStatements.push(`${romanMatch[1].toUpperCase()}. ${romanMatch[2]}`);
+
+    // Verificar se é uma afirmação
+    const statementCheck = isStatementLine(line);
+    if (statementCheck.isStatement && isInQuestion) {
+      currentStatements.push(statementCheck.text!);
       continue;
     }
-    
-    // Detectar alternativas - formatos variados
-    const optionPatterns = [
-      /^([A-Za-z])[\)\.]?\s*(.+?)(\s*\*|\s*\(correta?\)|\s*✓|\s*--\s*corret[ao])?$/i, // A) ou A.
-      /^(\d+)[\)\.]?\s*(.+?)(\s*\*|\s*\(correta?\)|\s*✓|\s*--\s*corret[ao])?$/i, // 1) ou 1.
-    ];
-    
-    let optionMatch = null;
-    for (const pattern of optionPatterns) {
-      optionMatch = line.match(pattern);
-      if (optionMatch) break;
-    }
-    
-    if (optionMatch && currentQuestion) {
-      // Finalizar alternativa anterior se existir
-      if (currentOptionLabel && currentOptionText) {
-        let isCorrect = false;
-        if (answerKey[questionNumber]) {
-          isCorrect = currentOptionLabel === answerKey[questionNumber];
-        }
-        
-        currentOptions.push({
-          label: currentOptionLabel,
-          text: currentOptionText.trim(),
-          is_correct: isCorrect
-        });
-      }
+
+    // Verificar se é uma alternativa
+    const optionCheck = isOptionLine(line);
+    if (optionCheck.isOption && isInQuestion) {
+      let isCorrect = optionCheck.isCorrect || false;
       
-      // Nova alternativa
-      currentOptionLabel = optionMatch[1].toUpperCase();
-      currentOptionText = optionMatch[2].trim();
-      const isMarkedCorrect = !!optionMatch[3];
-      
-      // Se marcada explicitamente como correta
-      if (isMarkedCorrect) {
-        currentOptions.push({
-          label: currentOptionLabel,
-          text: currentOptionText,
-          is_correct: true
-        });
-        currentOptionLabel = '';
-        currentOptionText = '';
+      // Verificar gabarito
+      if (!isCorrect && answerKey[questionNumber]) {
+        isCorrect = optionCheck.label === answerKey[questionNumber];
       }
+
+      currentOptions.push({
+        label: optionCheck.label!,
+        text: optionCheck.text!,
+        is_correct: isCorrect
+      });
+      
+      isInOptions = true;
       continue;
     }
-    
-    // Se não é início de pergunta nem alternativa, pode ser continuação
-    if (currentOptionLabel && currentOptionText) {
-      // Continuação da alternativa atual
-      currentOptionText += ` ${line}`;
-    } else if (currentQuestion && !currentStatements.length && !currentOptions.length) {
+
+    // Se não é pergunta, afirmação ou alternativa, pode ser continuação
+    if (isInQuestion && !isInOptions && currentQuestion) {
       // Continuação da pergunta
       currentQuestion += ` ${line}`;
+    } else if (isInOptions && currentOptions.length > 0) {
+      // Continuação da última alternativa
+      const lastOption = currentOptions[currentOptions.length - 1];
+      lastOption.text += ` ${line}`;
     }
   }
-  
-  // Finalizar última alternativa se existir
-  if (currentOptionLabel && currentOptionText) {
-    let isCorrect = false;
-    if (answerKey[questionNumber]) {
-      isCorrect = currentOptionLabel === answerKey[questionNumber];
-    }
-    
-    currentOptions.push({
-      label: currentOptionLabel,
-      text: currentOptionText.trim(),
-      is_correct: isCorrect
-    });
-  }
-  
-  // Adicionar última pergunta
-  if (currentQuestion && (currentStatements.length > 0 || currentOptions.length > 0)) {
-    const questionData: ParsedQuestion = {
-      text: currentQuestion,
-      options: [...currentOptions]
-    };
-    if (currentStatements.length > 0) {
-      questionData.statements = [...currentStatements];
-    }
-    questions.push(questionData);
-  }
-  
+
+  // Salvar última pergunta
+  saveCurrentQuestion();
+
   // Processar questões de verdadeiro/falso
   questions.forEach(question => {
     const hasVerdadeiroFalso = question.options.some(opt => 
-      /^(verdadeiro|falso|true|false|correto|incorreto|certo|errado)$/i.test(opt.text.trim())
+      /^(verdadeiro|falso|true|false|correto|incorreto|certo|errado|v|f)$/i.test(opt.text.trim())
     );
     
     if (hasVerdadeiroFalso || question.options.length === 2) {
