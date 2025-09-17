@@ -82,8 +82,7 @@ export const ImagesStep: React.FC<ImagesStepProps> = ({ questions, quizId, onNex
         const { error: updateError } = await supabase
           .from('questions')
           .update({ image_url: publicUrl })
-          .eq('quiz_id', quizId)
-          .eq('order', question.order);
+          .match({ quiz_id: quizId, order: question.order }); // Usar match ao invés de eq para evitar conflito
 
         if (updateError) {
           throw updateError;
@@ -134,8 +133,7 @@ export const ImagesStep: React.FC<ImagesStepProps> = ({ questions, quizId, onNex
       const { error: updateError } = await supabase
         .from('questions')
         .update({ image_url: null })
-        .eq('quiz_id', quizId)
-        .eq('order', question.order);
+        .match({ quiz_id: quizId, order: question.order }); // Usar match ao invés de eq
 
       if (updateError) {
         throw updateError;
